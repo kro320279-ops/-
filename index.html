@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<title>推し育成アプリ</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #f2f2f7;
+}
+
+/* 画面 */
+.screen {
+  display: none;
+  height: 100vh;
+  overflow-y: auto;
+}
+.active {
+  display: block;
+}
+
+/* 一覧 */
+#grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  padding: 10px;
+}
+
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 10px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.card img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+/* 詳細 */
+#detail {
+  padding: 14px;
+  text-align: center;
+}
+
+#petImage {
+  width: 160px;
+  height: 160px;
+  border-radius: 18px;
+  object-fit: cover;
+  margin: 10px 0;
+}
+
+/* ボタン */
+button {
+  background: #ff5c8a;
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 12px;
+  margin-top: 8px;
+  width: 100%;
+}
+
+/* input */
+input {
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  width: 90%;
+  margin-top: 6px;
+}
+
+/* 追加ボタン */
+#addBtn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  font-size: 28px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+/* エフェクト */
+.floatEmoji {
+  position: absolute;
+  font-size: 24px;
+  animation: floatUp 1s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes floatUp {
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-60px); }
+}
+</style>
+</head>
+
+<body>
+
+<!-- 一覧 -->
+<div id="listScreen" class="screen active">
+  <div id="grid"></div>
+</div>
+
+<!-- 詳細 -->
+<div id="detailScreen" class="screen">
+  <div id="detail">
+    <h2 id="name"></h2>
+    <p>出会って <span id="days"></span> 日</p>
+
+    <img id="petImage">
+
+    <h3>🍚 <span id="food"></span>%</h3>
+    <h3>💗 <span id="love"></span>%</h3>
+
+    <button onclick="feed()">ご飯</button>
+    <button onclick="loveUp()">愛でる</button>
+
+    <input id="nameInput" placeholder="名前">
+    <button onclick="changeName()">名前変更</button>
+
+    <!-- ⭐ 画像選択（これが消えてた原因） -->
+    <input type="file" accept="image/*" onchange="changeImage(event)">
+
+    <button onclick="back()">戻る</button>
+  </div>
+</div>
+
+<!-- 追加 -->
+<button id="addBtn" onclick="addPet()">＋</button>
+
+<script>
+let pets = JSON.parse(localStorage.getItem("pets")) || [];
+let current = 0;
+
+function save(){
+  localStorage.setItem("pets", JSON.stringify(pets));
+}
+
+/* 初期 */
+if(pets.length === 0){
+  pets.push({
+    name:"りん",
+    food:100,
+    love:100,
+    start:Date.now(),
+    image:""
+  });
+  save();
+}
+
+/* 画面切替 */
+function showList(){
+  document.getElementById("listScreen").classList.add("active");
+  document.getElementById("detailScreen").classList.remove("active");
+}
+
+function showDetail(){
+  document.getElementById("listScreen").classList.remove("active");
+  document.getElementById("detailScreen").classList.add("active");
+}
+
+/* 追加 */
+function addPet(){
+  pets.push({
+    name:"なまえ未設定",
+    food:100,
+    love:100,
+    start:Date.now(),
+    image:""
+  });
+  save();
+  render();
+}
+
+/* 選択 */
+function selectPet(i){
+  current = i;
+  showDetail();
+  render();
+}
+
+/* 操作 */
+function feed(){
+  pets[current].food = Math.min(100, pets[current].food + 10);
+  save(); render();
+  spawnEmoji("😋");
+}
+
+function loveUp(){
+  pets[current].love = Math.min(100, pets[current].love + 10);
+  save(); render();
+  spawnEmoji("💕");
+}
+
+function changeName(){
+  pets[current].name = document.getElementById("nameInput").value;
+  save(); render();
+}
+
+function changeImage(e){
+  const r = new FileReader();
+  r.onload = function(){
+    pets[current].image = r.result;
+    save();
+    render();
+  }
+  r.readAsDataURL(e.target.files[0]);
+}
+
+function back(){
+  showList();
+}
+
+/* 表示 */
+function render(){
+
+  let grid = "";
+
+  pets.forEach((p,i)=>{
+    grid += `
+      <div class="card" onclick="selectPet(${i})">
+        <img src="${p.image || ''}">
+        <b>${p.name}</b>
+        <div>🍚${p.food}% 💗${p.love}%</div>
+      </div>
+    `;
+  });
+
+  document.getElementById("grid").innerHTML = grid;
+
+  let p = pets[current];
+  if(!p) return;
+
+  document.getElementById("name").innerText = p.name;
+  document.getElementById("food").innerText = p.food;
+  document.getElementById("love").innerText = p.love;
+  document.getElementById("petImage").src = p.image || "";
+
+  let days = Math.floor((Date.now()-p.start)/(1000*60*60*24));
+  document.getElementById("days").innerText = days;
+}
+
+/* 放置減少 */
+setInterval(()=>{
+  pets.forEach(p=>{
+    p.food = Math.max(0, p.food - 1);
+    p.love = Math.max(0, p.love - 1);
+  });
+  save();
+  render();
+}, 1000 * 60 * 10);
+
+/* エモート */
+function spawnEmoji(text){
+  const img = document.getElementById("petImage");
+  if(!img) return;
+
+  const rect = img.getBoundingClientRect();
+
+  const el = document.createElement("div");
+  el.className = "floatEmoji";
+  el.innerText = text;
+
+  el.style.left = (rect.left + rect.width/2) + "px";
+  el.style.top = (rect.top + window.scrollY) + "px";
+
+  document.body.appendChild(el);
+
+  setTimeout(()=>el.remove(),1000);
+}
+
+render();
+</script>
+
+</body>
+</html>
